@@ -11,7 +11,7 @@ export class GeminiProvider implements AIProvider {
 
   async generateItinerary(tripData: TripFormData): Promise<DayPlan[]> {
     const model = this.client.getGenerativeModel({
-      model: 'gemini-2.0-flash',
+      model: 'gemini-2.5-flash-lite',
       generationConfig: {
         temperature: 0.7,
         responseMimeType: 'application/json',
