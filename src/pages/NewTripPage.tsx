@@ -1,15 +1,19 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, Sparkles } from 'lucide-react';
+import { ArrowLeft, Sparkles, Globe, CheckCircle2 } from 'lucide-react';
 import { generateItinerary } from '../lib/actions';
 import type { TripFormData, TravelStyle, WalkingTolerance } from '../types';
 import toast from 'react-hot-toast';
+import { CityAutocomplete } from '../components/CityAutocomplete';
+import type { CityLocation } from '../lib/geocoding';
 
 export function NewTripPage() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState<TripFormData>({
     destination: '',
+    country: '',
+    country_code: '',
     start_date: '',
     days: 5,
     travel_style: 'balanced' as TravelStyle,
@@ -22,8 +26,8 @@ export function NewTripPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!formData.destination || !formData.start_date) {
-      toast.error('Please fill in all required fields');
+    if (!formData.destination || !formData.country || !formData.start_date) {
+      toast.error('Please select a city from the suggestions and fill in all required fields');
       return;
     }
 
@@ -51,6 +55,15 @@ export function NewTripPage() {
     }));
   };
 
+  const handleCityChange = (city: string, location: CityLocation | null) => {
+    setFormData((prev) => ({
+      ...prev,
+      destination: city,
+      country: location?.country || '',
+      country_code: location?.country_code || '',
+    }));
+  };
+
   return (
     <div className="max-w-3xl mx-auto">
       <Link
@@ -74,16 +87,27 @@ export function NewTripPage() {
             <label htmlFor="destination" className="block text-sm font-medium text-gray-700 mb-2">
               Destination City *
             </label>
-            <input
-              type="text"
-              id="destination"
-              name="destination"
+            <CityAutocomplete
               value={formData.destination}
-              onChange={handleChange}
-              placeholder="e.g., Paris, France"
+              onChange={handleCityChange}
+              placeholder="Start typing to search for your destination..."
               required
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-transparent"
             />
+            <p className="mt-1 text-xs text-gray-500">
+              Start typing to search for your destination city
+            </p>
+
+            {formData.country && (
+              <div className="mt-3 flex items-center gap-2 px-4 py-2 bg-emerald-50 border border-emerald-200 rounded-lg">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                <div className="flex items-center gap-2 flex-1 min-w-0">
+                  <Globe className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                  <span className="text-sm font-medium text-emerald-900">
+                    Country: {formData.country}
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
