@@ -6,8 +6,6 @@ export type AdjustmentMode = 'reduce-fatigue' | 'increase-energy' | 'bring-it-on
 export interface Trip {
   id: string;
   destination: string;
-  country: string | null;
-  country_code: string | null;
   start_date: string;
   days: number;
   travel_style: TravelStyle;
@@ -41,8 +39,6 @@ export interface Itinerary {
 
 export interface TripFormData {
   destination: string;
-  country: string;
-  country_code: string;
   start_date: string;
   days: number;
   travel_style: TravelStyle;
