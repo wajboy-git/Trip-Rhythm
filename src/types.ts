@@ -1,6 +1,7 @@
 export type TravelStyle = 'chill' | 'balanced' | 'intense';
 export type WalkingTolerance = 'low' | 'medium' | 'high';
 export type EffortLevel = 'low' | 'medium' | 'high';
+export type AdjustmentMode = 'reduce-fatigue' | 'increase-energy' | 'bring-it-on';
 
 export interface Trip {
   id: string;
@@ -48,6 +49,8 @@ export interface TripFormData {
 }
 
 export interface AdjustmentComparison {
-  originalDay: DayPlan;
-  adjustedDay: DayPlan;
+  originalDays: DayPlan[];
+  adjustedDays: DayPlan[];
+  startDayIndex: number;
+  mode: AdjustmentMode;
 }

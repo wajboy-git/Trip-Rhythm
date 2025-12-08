@@ -1,6 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import type { AIProvider } from './types';
-import type { DayPlan, TripFormData } from '../../types';
+import type { DayPlan, TripFormData, AdjustmentMode, AdjustmentComparison } from '../../types';
 
 export class AnthropicProvider implements AIProvider {
   private client: Anthropic;
@@ -74,6 +74,47 @@ export class AnthropicProvider implements AIProvider {
     return {
       originalDay: parsed.originalDay,
       adjustedDay: parsed.adjustedDay,
+    };
+  }
+
+  async adjustDaysWithMode(
+    startDayIndex: number,
+    allDays: DayPlan[],
+    tripContext: TripFormData,
+    mode: AdjustmentMode
+  ): Promise<AdjustmentComparison> {
+    const daysToAdjust = allDays.slice(startDayIndex - 1);
+    const prompt = this.buildAdjustWithModePrompt(startDayIndex, daysToAdjust, allDays, tripContext, mode);
+
+    const response = await this.client.messages.create({
+      model: 'claude-3-5-sonnet-20241022',
+      max_tokens: 8192,
+      temperature: 0.7,
+      messages: [
+        {
+          role: 'user',
+          content: prompt,
+        },
+      ],
+    });
+
+    const textContent = response.content.find((block) => block.type === 'text');
+    if (!textContent || textContent.type !== 'text') {
+      throw new Error('No text response from Anthropic');
+    }
+
+    const text = textContent.text;
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      throw new Error('No JSON found in Anthropic response');
+    }
+
+    const parsed = JSON.parse(jsonMatch[0]);
+    return {
+      originalDays: daysToAdjust,
+      adjustedDays: parsed.adjustedDays,
+      startDayIndex,
+      mode,
     };
   }
 
@@ -164,5 +205,80 @@ Return ONLY valid JSON in this exact format (no other text):
     ]
   }
 }`;
+  }
+
+  private buildAdjustWithModePrompt(
+    startDayIndex: number,
+    daysToAdjust: DayPlan[],
+    allDays: DayPlan[],
+    tripContext: TripFormData,
+    mode: AdjustmentMode
+  ): string {
+    let modeInstructions = '';
+
+    if (mode === 'reduce-fatigue') {
+      modeInstructions = `The user finds Day ${startDayIndex} too tiring. Adjust this day and all following days to reduce overall fatigue:
+1. Reduce the number of activities or their physical demands
+2. Add more rest time, leisure activities, or downtime
+3. Lower effort levels where possible (high → medium, medium → low)
+4. Replace strenuous activities with relaxing alternatives
+5. Ensure each day feels comfortable and not overwhelming
+6. Maintain trip quality while prioritizing rest and recovery`;
+    } else if (mode === 'increase-energy') {
+      modeInstructions = `The user has more energy and wants Day ${startDayIndex} and following days to be more active:
+1. Add more activities to fill the schedule
+2. Increase effort levels where appropriate (low → medium, medium → high)
+3. Include more physical or adventurous activities
+4. Pack the schedule more densely while keeping it realistic
+5. Add exciting experiences and energetic pursuits
+6. Keep some strategic breaks but maximize engagement`;
+    } else if (mode === 'bring-it-on') {
+      modeInstructions = `The user wants maximum intensity starting from Day ${startDayIndex}. Transform the remaining trip to INTENSE style with HIGH walking tolerance:
+1. Pack each day with as many quality activities as realistically possible
+2. Maximize effort levels - prioritize high-energy activities
+3. Minimize downtime - only essential breaks
+4. Include challenging physical activities and long walks
+5. Create an adventurous, action-packed experience
+6. Push the boundaries while remaining realistic and safe
+7. Adjust travel style to "intense" and walking tolerance to "high"`;
+    }
+
+    return `Adjust Day ${startDayIndex} and all following days based on user preference.
+
+Days to Adjust (starting from Day ${startDayIndex}):
+${JSON.stringify(daysToAdjust, null, 2)}
+
+Trip Context:
+- Destination: ${tripContext.destination}
+- Current Travel Style: ${tripContext.travel_style}
+- Current Walking Tolerance: ${tripContext.walking_tolerance}
+- Wake Time: ${tripContext.wake_time}
+- Sleep Time: ${tripContext.sleep_time}
+
+Mode: ${mode}
+
+${modeInstructions}
+
+IMPORTANT: Adjust ALL days from Day ${startDayIndex} onwards (${daysToAdjust.length} days total). Each day should reflect the requested adjustment while maintaining logical flow and trip coherence.
+
+Return ONLY valid JSON in this exact format (no other text):
+{
+  "adjustedDays": [
+    {
+      "date": "YYYY-MM-DD",
+      "summary": "Updated summary reflecting the adjustment",
+      "activities": [
+        {
+          "time": "HH:MM",
+          "name": "Activity name",
+          "description": "Description",
+          "effortLevel": "low|medium|high"
+        }
+      ]
+    }
+  ]
+}
+
+Return exactly ${daysToAdjust.length} adjusted days in the array.`;
   }
 }

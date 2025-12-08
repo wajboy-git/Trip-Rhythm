@@ -1,24 +1,53 @@
 import { X, Check, Battery, Clock } from 'lucide-react';
-import type { DayPlan, EffortLevel } from '../types';
+import type { AdjustmentComparison, DayPlan, EffortLevel, AdjustmentMode } from '../types';
 
 interface ComparisonModalProps {
-  originalDay: DayPlan;
-  adjustedDay: DayPlan;
+  comparison: AdjustmentComparison;
   onAccept: () => void;
   onCancel: () => void;
 }
 
 export function ComparisonModal({
-  originalDay,
-  adjustedDay,
+  comparison,
   onAccept,
   onCancel,
 }: ComparisonModalProps) {
+  const { originalDays, adjustedDays, startDayIndex, mode } = comparison;
+
+  const getModeLabel = (mode: AdjustmentMode) => {
+    switch (mode) {
+      case 'reduce-fatigue':
+        return 'Less Tiring';
+      case 'increase-energy':
+        return 'More Active';
+      case 'bring-it-on':
+        return 'Maximum Intensity';
+    }
+  };
+
+  const getModeColor = (mode: AdjustmentMode) => {
+    switch (mode) {
+      case 'reduce-fatigue':
+        return 'bg-green-100 text-green-800';
+      case 'increase-energy':
+        return 'bg-blue-100 text-blue-800';
+      case 'bring-it-on':
+        return 'bg-orange-100 text-orange-800';
+    }
+  };
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-xl shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-hidden">
+      <div className="bg-white rounded-xl shadow-2xl max-w-7xl w-full max-h-[90vh] overflow-hidden">
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <h2 className="text-2xl font-bold text-gray-900">Day Adjustment Comparison</h2>
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-1">
+              Itinerary Adjustment Comparison
+            </h2>
+            <p className="text-sm text-gray-600">
+              Reviewing {adjustedDays.length} {adjustedDays.length === 1 ? 'day' : 'days'} starting from Day {startDayIndex}
+            </p>
+          </div>
           <button
             onClick={onCancel}
             className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
@@ -28,24 +57,40 @@ export function ComparisonModal({
         </div>
 
         <div className="p-6 overflow-y-auto max-h-[calc(90vh-180px)]">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <div className="mb-4">
-                <span className="inline-block px-3 py-1 bg-red-100 text-red-800 rounded-full text-sm font-medium">
-                  Original Day
-                </span>
-              </div>
-              <DayComparison day={originalDay} />
-            </div>
+          <div className="mb-6 flex items-center gap-3">
+            <span className="text-sm font-medium text-gray-600">Adjustment Mode:</span>
+            <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${getModeColor(mode)}`}>
+              {getModeLabel(mode)}
+            </span>
+          </div>
 
-            <div>
-              <div className="mb-4">
-                <span className="inline-block px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
-                  Adjusted Day (Less Tiring)
-                </span>
+          <div className="space-y-8">
+            {originalDays.map((originalDay, idx) => (
+              <div key={idx} className="border-b border-gray-200 pb-8 last:border-b-0">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                  Day {startDayIndex + idx}
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <div className="mb-3">
+                      <span className="inline-block px-3 py-1 bg-red-100 text-red-800 rounded-full text-sm font-medium">
+                        Original
+                      </span>
+                    </div>
+                    <DayComparison day={originalDay} />
+                  </div>
+
+                  <div>
+                    <div className="mb-3">
+                      <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${getModeColor(mode)}`}>
+                        Adjusted
+                      </span>
+                    </div>
+                    <DayComparison day={adjustedDays[idx]} highlight mode={mode} />
+                  </div>
+                </div>
               </div>
-              <DayComparison day={adjustedDay} highlight />
-            </div>
+            ))}
           </div>
         </div>
 
@@ -58,7 +103,7 @@ export function ComparisonModal({
           </button>
           <button
             onClick={onAccept}
-            className="flex-1 flex items-center justify-center gap-2 bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors shadow-md hover:shadow-lg font-medium"
+            className="flex-1 flex items-center justify-center gap-2 bg-sky-600 text-white px-6 py-3 rounded-lg hover:bg-sky-700 transition-colors shadow-md hover:shadow-lg font-medium"
           >
             <Check className="w-5 h-5" />
             Accept Changes
@@ -69,9 +114,17 @@ export function ComparisonModal({
   );
 }
 
-function DayComparison({ day, highlight }: { day: DayPlan; highlight?: boolean }) {
+function DayComparison({ day, highlight, mode }: { day: DayPlan; highlight?: boolean; mode?: AdjustmentMode }) {
+  const getBorderColor = () => {
+    if (!highlight) return 'border-gray-200 bg-white';
+    if (mode === 'reduce-fatigue') return 'border-green-300 bg-green-50';
+    if (mode === 'increase-energy') return 'border-blue-300 bg-blue-50';
+    if (mode === 'bring-it-on') return 'border-orange-300 bg-orange-50';
+    return 'border-sky-300 bg-sky-50';
+  };
+
   return (
-    <div className={`rounded-lg border-2 p-4 ${highlight ? 'border-green-300 bg-green-50' : 'border-gray-200 bg-white'}`}>
+    <div className={`rounded-lg border-2 p-4 ${getBorderColor()}`}>
       <p className="text-gray-700 mb-4 font-medium">{day.summary}</p>
 
       <div className="space-y-3">

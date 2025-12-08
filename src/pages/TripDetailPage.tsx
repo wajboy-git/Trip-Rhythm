@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, MapPin, Calendar, Clock, Battery, RefreshCw } from 'lucide-react';
+import { ArrowLeft, MapPin, Calendar, Clock, Battery, RefreshCw, Zap, Flame } from 'lucide-react';
 import { getTripById, getItinerariesForTrip } from '../lib/db';
-import { adjustDayForFatigue, saveAdjustedDay } from '../lib/actions';
-import type { Trip, Itinerary, DayPlan, EffortLevel } from '../types';
+import { adjustDaysWithMode, saveAdjustedDays } from '../lib/actions';
+import type { Trip, Itinerary, DayPlan, EffortLevel, AdjustmentComparison, AdjustmentMode } from '../types';
 import toast from 'react-hot-toast';
 import { ComparisonModal } from '../components/ComparisonModal';
 
@@ -14,11 +14,9 @@ export function TripDetailPage() {
   const [loading, setLoading] = useState(true);
   const [selectedDayIndex, setSelectedDayIndex] = useState<number | null>(null);
   const [adjusting, setAdjusting] = useState(false);
+  const [adjustingMode, setAdjustingMode] = useState<AdjustmentMode | null>(null);
   const [showComparison, setShowComparison] = useState(false);
-  const [comparison, setComparison] = useState<{
-    originalDay: DayPlan;
-    adjustedDay: DayPlan;
-  } | null>(null);
+  const [comparison, setComparison] = useState<AdjustmentComparison | null>(null);
 
   useEffect(() => {
     if (tripId) {
@@ -45,33 +43,36 @@ export function TripDetailPage() {
     }
   }
 
-  async function handleAdjustDay() {
+  async function handleAdjustDay(mode: AdjustmentMode) {
     if (!tripId || selectedDayIndex === null) return;
 
     setAdjusting(true);
+    setAdjustingMode(mode);
 
     try {
-      const result = await adjustDayForFatigue(tripId, selectedDayIndex);
+      const result = await adjustDaysWithMode(tripId, selectedDayIndex, mode);
       setComparison(result);
       setShowComparison(true);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to adjust day');
+      toast.error(error instanceof Error ? error.message : 'Failed to adjust days');
       console.error(error);
     } finally {
       setAdjusting(false);
+      setAdjustingMode(null);
     }
   }
 
   async function handleAcceptChanges() {
-    if (!tripId || selectedDayIndex === null || !comparison) return;
+    if (!tripId || !comparison) return;
 
     try {
-      await saveAdjustedDay(tripId, selectedDayIndex, comparison.adjustedDay);
+      await saveAdjustedDays(tripId, comparison.startDayIndex, comparison.adjustedDays);
       await loadTripData();
       setShowComparison(false);
       setComparison(null);
       setSelectedDayIndex(null);
-      toast.success('Day updated successfully!');
+      const daysCount = comparison.adjustedDays.length;
+      toast.success(`${daysCount} ${daysCount === 1 ? 'day' : 'days'} updated successfully!`);
     } catch (error) {
       toast.error('Failed to save changes');
       console.error(error);
@@ -174,21 +175,57 @@ export function TripDetailPage() {
       </div>
 
       {selectedDayIndex !== null && (
-        <div className="fixed bottom-6 right-6">
+        <div className="fixed bottom-6 right-6 flex flex-col gap-3">
           <button
-            onClick={handleAdjustDay}
+            onClick={() => handleAdjustDay('reduce-fatigue')}
             disabled={adjusting}
-            className="flex items-center gap-2 bg-amber-600 text-white px-6 py-3 rounded-lg hover:bg-amber-700 transition-colors shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+            className="flex items-center gap-2 bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed font-medium whitespace-nowrap"
           >
-            {adjusting ? (
+            {adjusting && adjustingMode === 'reduce-fatigue' ? (
               <>
                 <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
                 Adjusting...
               </>
             ) : (
               <>
-                <RefreshCw className="w-5 h-5" />
+                <Battery className="w-5 h-5" />
                 This Day Feels Too Tiring
+              </>
+            )}
+          </button>
+
+          <button
+            onClick={() => handleAdjustDay('increase-energy')}
+            disabled={adjusting}
+            className="flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed font-medium whitespace-nowrap"
+          >
+            {adjusting && adjustingMode === 'increase-energy' ? (
+              <>
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                Adjusting...
+              </>
+            ) : (
+              <>
+                <Zap className="w-5 h-5" />
+                I've More Energy
+              </>
+            )}
+          </button>
+
+          <button
+            onClick={() => handleAdjustDay('bring-it-on')}
+            disabled={adjusting}
+            className="flex items-center gap-2 bg-orange-600 text-white px-6 py-3 rounded-lg hover:bg-orange-700 transition-colors shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed font-medium whitespace-nowrap"
+          >
+            {adjusting && adjustingMode === 'bring-it-on' ? (
+              <>
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                Adjusting...
+              </>
+            ) : (
+              <>
+                <Flame className="w-5 h-5" />
+                I Am Game - Bring it On
               </>
             )}
           </button>
@@ -197,8 +234,7 @@ export function TripDetailPage() {
 
       {showComparison && comparison && (
         <ComparisonModal
-          originalDay={comparison.originalDay}
-          adjustedDay={comparison.adjustedDay}
+          comparison={comparison}
           onAccept={handleAcceptChanges}
           onCancel={handleCancelChanges}
         />
