@@ -6,6 +6,8 @@ export async function createTrip(tripData: TripFormData): Promise<Trip> {
     .from('trips')
     .insert({
       destination: tripData.destination,
+      country: tripData.country || null,
+      country_code: tripData.country_code || null,
       start_date: tripData.start_date,
       days: tripData.days,
       travel_style: tripData.travel_style,
