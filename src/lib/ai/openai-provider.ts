@@ -119,6 +119,10 @@ export class OpenAIProvider implements AIProvider {
       ? tripData.cities.map(city => `${city.name}, ${city.country} (${city.latitude}, ${city.longitude})`).join(' → ')
       : tripData.destination;
 
+    const originNote = tripData.originCity
+      ? `\n- Origin City: Starting from ${tripData.originCity.name}, ${tripData.originCity.country}`
+      : '';
+
     const citiesNote = tripData.cities && tripData.cities.length > 1
       ? `\n- Multi-City Trip: The itinerary should flow across these cities in order: ${tripData.cities.map(c => `${c.name}, ${c.country}`).join(' → ')}`
       : '';
@@ -126,7 +130,7 @@ export class OpenAIProvider implements AIProvider {
     return `Generate a ${tripData.days}-day travel itinerary for ${destinationInfo}.
 
 Trip Details:
-- Destination: ${destinationInfo}
+- Destination: ${destinationInfo}${originNote}
 - Start Date: ${tripData.start_date}
 - Number of Days: ${tripData.days}
 - Travel Style: ${tripData.travel_style} (chill = relaxed pace with downtime; balanced = moderate sightseeing with breaks; intense = packed schedule)

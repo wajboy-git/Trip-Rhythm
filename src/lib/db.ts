@@ -60,6 +60,13 @@ export async function linkCitiesToTrip(
 }
 
 export async function createTrip(tripData: TripFormData): Promise<Trip> {
+  let originCityId: string | null = null;
+
+  if (tripData.originCity) {
+    const originCity = await createOrGetCity(tripData.originCity);
+    originCityId = originCity.id;
+  }
+
   const { data, error } = await supabase
     .from('trips')
     .insert({
@@ -71,6 +78,7 @@ export async function createTrip(tripData: TripFormData): Promise<Trip> {
       wake_time: tripData.wake_time,
       sleep_time: tripData.sleep_time,
       must_see_places: tripData.must_see_places || null,
+      origin_city_id: originCityId,
     })
     .select()
     .single();
@@ -118,6 +126,18 @@ export async function getTripById(tripId: string): Promise<Trip | null> {
   if (data) {
     const cities = await getCitiesForTrip(tripId);
     data.cities = cities;
+
+    if (data.origin_city_id) {
+      const { data: originCity, error: originError } = await supabase
+        .from('cities')
+        .select('*')
+        .eq('id', data.origin_city_id)
+        .maybeSingle();
+
+      if (!originError && originCity) {
+        data.originCity = originCity;
+      }
+    }
   }
 
   return data;
@@ -139,7 +159,21 @@ export async function getRecentTrips(limit: number = 10): Promise<Trip[]> {
   const tripsWithCities = await Promise.all(
     trips.map(async (trip) => {
       const cities = await getCitiesForTrip(trip.id);
-      return { ...trip, cities };
+      let originCity = null;
+
+      if (trip.origin_city_id) {
+        const { data: origin, error: originError } = await supabase
+          .from('cities')
+          .select('*')
+          .eq('id', trip.origin_city_id)
+          .maybeSingle();
+
+        if (!originError && origin) {
+          originCity = origin;
+        }
+      }
+
+      return { ...trip, cities, originCity };
     })
   );
 

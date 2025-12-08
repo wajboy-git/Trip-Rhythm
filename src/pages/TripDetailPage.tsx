@@ -3,15 +3,18 @@ import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, MapPin, Calendar, Clock, Battery, RefreshCw, Zap, Flame } from 'lucide-react';
 import { getTripById, getItinerariesForTrip } from '../lib/db';
 import { adjustDaysWithMode, saveAdjustedDays } from '../lib/actions';
-import type { Trip, Itinerary, DayPlan, EffortLevel, AdjustmentComparison, AdjustmentMode } from '../types';
+import type { Trip, Itinerary, DayPlan, EffortLevel, AdjustmentComparison, AdjustmentMode, TravelLeg } from '../types';
 import toast from 'react-hot-toast';
 import { ComparisonModal } from '../components/ComparisonModal';
 import { CityChip } from '../components/CityChip';
+import { TravelLegCard } from '../components/TravelLegCard';
+import { calculateTravelLegs } from '../lib/travel';
 
 export function TripDetailPage() {
   const { tripId } = useParams<{ tripId: string }>();
   const [trip, setTrip] = useState<Trip | null>(null);
   const [itineraries, setItineraries] = useState<Itinerary[]>([]);
+  const [travelLegs, setTravelLegs] = useState<TravelLeg[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedDayIndex, setSelectedDayIndex] = useState<number | null>(null);
   const [adjusting, setAdjusting] = useState(false);
@@ -36,6 +39,11 @@ export function TripDetailPage() {
 
       setTrip(tripData);
       setItineraries(itineraryData);
+
+      if (tripData?.cities && tripData.cities.length > 0) {
+        const legs = calculateTravelLegs(tripData.cities, tripData.originCity);
+        setTravelLegs(legs);
+      }
     } catch (error) {
       toast.error('Failed to load trip details');
       console.error(error);
@@ -174,6 +182,17 @@ export function TripDetailPage() {
           )}
         </div>
       </div>
+
+      {travelLegs.length > 0 && (
+        <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-6 mb-8 shadow-sm">
+          <h2 className="text-xl font-bold text-gray-900 mb-4">Travel Between Cities</h2>
+          <div className="space-y-4">
+            {travelLegs.map((leg, index) => (
+              <TravelLegCard key={index} leg={leg} />
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="space-y-6">
         {itineraries.map((itinerary) => (

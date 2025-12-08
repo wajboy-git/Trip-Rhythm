@@ -11,6 +11,8 @@ export function NewTripPage() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [geocoding, setGeocoding] = useState(false);
+  const [geocodingOrigin, setGeocodingOrigin] = useState(false);
+  const [originInput, setOriginInput] = useState('');
   const [formData, setFormData] = useState<TripFormData>({
     destination: '',
     start_date: '',
@@ -105,6 +107,41 @@ export function NewTripPage() {
     }));
   };
 
+  const handleOriginInputBlur = async () => {
+    if (!originInput.trim()) {
+      setFormData((prev) => ({ ...prev, originCity: undefined }));
+      return;
+    }
+
+    const cityNames = parseCityInput(originInput);
+    if (cityNames.length === 0) {
+      setFormData((prev) => ({ ...prev, originCity: undefined }));
+      return;
+    }
+
+    setGeocodingOrigin(true);
+    try {
+      const geocodedCities = await geocodeCities([cityNames[0]]);
+
+      if (geocodedCities.length === 0) {
+        toast.error('Could not find the origin city entered');
+        setFormData((prev) => ({ ...prev, originCity: undefined }));
+      } else {
+        setFormData((prev) => ({ ...prev, originCity: geocodedCities[0] }));
+      }
+    } catch (error) {
+      toast.error('Failed to geocode origin city');
+      console.error(error);
+    } finally {
+      setGeocodingOrigin(false);
+    }
+  };
+
+  const handleRemoveOriginCity = () => {
+    setFormData((prev) => ({ ...prev, originCity: undefined }));
+    setOriginInput('');
+  };
+
   return (
     <div className="max-w-3xl mx-auto">
       <Link
@@ -124,6 +161,38 @@ export function NewTripPage() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
+          <div>
+            <label htmlFor="origin" className="block text-sm font-medium text-gray-700 mb-2">
+              Origin City (Optional)
+            </label>
+            <input
+              type="text"
+              id="origin"
+              name="origin"
+              value={originInput}
+              onChange={(e) => setOriginInput(e.target.value)}
+              onBlur={handleOriginInputBlur}
+              placeholder="e.g., New York"
+              disabled={geocodingOrigin}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
+            />
+            {geocodingOrigin && (
+              <p className="text-sm text-gray-600 mt-2">
+                <span className="inline-block animate-spin mr-2">⟳</span>
+                Finding city...
+              </p>
+            )}
+            {formData.originCity && (
+              <div className="flex flex-wrap gap-2 mt-3">
+                <CityChip
+                  city={formData.originCity.name}
+                  country={formData.originCity.country}
+                  onRemove={handleRemoveOriginCity}
+                />
+              </div>
+            )}
+          </div>
+
           <div>
             <label htmlFor="destination" className="block text-sm font-medium text-gray-700 mb-2">
               Destination Cities *

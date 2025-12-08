@@ -33,6 +33,8 @@ export interface Trip {
   sleep_time: string;
   must_see_places: string | null;
   created_at: string;
+  origin_city_id?: string | null;
+  originCity?: City | null;
   cities?: City[];
 }
 
@@ -66,6 +68,13 @@ export interface TripFormData {
   wake_time: string;
   sleep_time: string;
   must_see_places: string;
+  originCity?: {
+    name: string;
+    country: string;
+    country_code?: string;
+    latitude: number;
+    longitude: number;
+  };
   cities?: Array<{
     name: string;
     country: string;
@@ -80,4 +89,19 @@ export interface AdjustmentComparison {
   adjustedDays: DayPlan[];
   startDayIndex: number;
   mode: AdjustmentMode;
+}
+
+export type TravelMode = 'flight' | 'train' | 'car' | 'bus';
+
+export interface TravelModeOption {
+  mode: TravelMode;
+  duration: number;
+  isRecommended: boolean;
+}
+
+export interface TravelLeg {
+  fromCity: City;
+  toCity: City;
+  distance: number;
+  options: TravelModeOption[];
 }
