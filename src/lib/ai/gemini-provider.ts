@@ -34,7 +34,7 @@ export class GeminiProvider implements AIProvider {
     tripContext: TripFormData
   ): Promise<{ originalDay: DayPlan; adjustedDay: DayPlan }> {
     const model = this.client.getGenerativeModel({
-      model: 'gemini-1.5-flash',
+      model: 'gemini-2.5-flash-lite',
       generationConfig: {
         temperature: 0.7,
         responseMimeType: 'application/json',
