@@ -40,8 +40,6 @@ export async function adjustDayForFatigue(
 
     const tripContext: TripFormData = {
       destination: trip.destination,
-      country: trip.country || '',
-      country_code: trip.country_code || '',
       start_date: trip.start_date,
       days: trip.days,
       travel_style: trip.travel_style,
@@ -95,8 +93,6 @@ export async function adjustDaysWithMode(
 
     const tripContext: TripFormData = {
       destination: trip.destination,
-      country: trip.country || '',
-      country_code: trip.country_code || '',
       start_date: trip.start_date,
       days: trip.days,
       travel_style: trip.travel_style,
