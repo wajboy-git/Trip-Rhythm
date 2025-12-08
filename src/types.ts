@@ -32,6 +32,7 @@ export interface Trip {
   wake_time: string;
   sleep_time: string;
   must_see_places: string | null;
+  consider_weather?: boolean;
   created_at: string;
   origin_city_id?: string | null;
   originCity?: City | null;
@@ -68,6 +69,7 @@ export interface TripFormData {
   wake_time: string;
   sleep_time: string;
   must_see_places: string;
+  consider_weather?: boolean;
   originCity?: {
     name: string;
     country: string;
@@ -156,4 +158,33 @@ export interface DayPlan {
   date: string;
   summary: string;
   activities: Activity[];
+}
+
+export interface WeatherData {
+  date: string;
+  temperature_min: number;
+  temperature_max: number;
+  precipitation_probability: number;
+  weather_code: number;
+  wind_speed?: number;
+}
+
+export type WeatherCategory = 'good-outdoor' | 'mixed' | 'indoor-focused';
+
+export interface WeatherSuggestion {
+  category: WeatherCategory;
+  message: string;
+  suggested_accessories: string[];
+}
+
+export interface DayWeather extends WeatherData {
+  category: WeatherCategory;
+  icon: string;
+}
+
+export interface DeletedTripData {
+  trip: Trip;
+  cities: string[];
+  itineraries: Itinerary[];
+  timestamp: number;
 }

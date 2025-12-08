@@ -1,6 +1,7 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import type { AIProvider } from './types';
-import type { DayPlan, TripFormData, AdjustmentMode, AdjustmentComparison } from '../../types';
+import type { DayPlan, TripFormData, AdjustmentMode, AdjustmentComparison, WeatherData } from '../../types';
+import { formatWeatherForAI } from '../weather';
 
 export class GeminiProvider implements AIProvider {
   private client: GoogleGenerativeAI;
@@ -9,7 +10,7 @@ export class GeminiProvider implements AIProvider {
     this.client = new GoogleGenerativeAI(apiKey);
   }
 
-  async generateItinerary(tripData: TripFormData): Promise<DayPlan[]> {
+  async generateItinerary(tripData: TripFormData, weatherData?: WeatherData[] | null): Promise<DayPlan[]> {
     const model = this.client.getGenerativeModel({
       model: 'gemini-2.5-flash-lite',
       generationConfig: {
@@ -18,7 +19,7 @@ export class GeminiProvider implements AIProvider {
       },
     });
 
-    const prompt = this.buildGeneratePrompt(tripData);
+    const prompt = this.buildGeneratePrompt(tripData, weatherData);
     const result = await model.generateContent(prompt);
     const response = result.response;
     const text = response.text();
@@ -83,7 +84,7 @@ export class GeminiProvider implements AIProvider {
     };
   }
 
-  private buildGeneratePrompt(tripData: TripFormData): string {
+  private buildGeneratePrompt(tripData: TripFormData, weatherData?: WeatherData[] | null): string {
     const startDate = new Date(tripData.start_date);
 
     const destinationInfo = tripData.cities && tripData.cities.length > 0
@@ -98,6 +99,10 @@ export class GeminiProvider implements AIProvider {
       ? `\n- Multi-City Trip: The itinerary should flow across these cities in order: ${tripData.cities.map(c => `${c.name}, ${c.country}`).join(' → ')}`
       : '';
 
+    const weatherNote = weatherData && weatherData.length > 0
+      ? `\n\nWEATHER FORECAST:\n${formatWeatherForAI(weatherData)}\n\nIMPORTANT: Plan activities based on weather conditions. On days with heavy rain or snow, favor indoor activities (museums, galleries, cafes, shopping). On clear days, prioritize outdoor activities (parks, walking tours, outdoor attractions).`
+      : '';
+
     return `Generate a ${tripData.days}-day travel itinerary for ${destinationInfo}.
 
 Trip Details:
@@ -108,7 +113,7 @@ Trip Details:
 - Walking Tolerance: ${tripData.walking_tolerance} (low = minimal walking, use transport; medium = moderate walking with breaks; high = comfortable with long walks)
 - Wake Time: ${tripData.wake_time}
 - Sleep Time: ${tripData.sleep_time}${citiesNote}
-${tripData.must_see_places ? `- Must-See Places: ${tripData.must_see_places}` : ''}
+${tripData.must_see_places ? `- Must-See Places: ${tripData.must_see_places}` : ''}${weatherNote}
 
 Requirements:
 1. Create ${tripData.days} days of activities
@@ -118,7 +123,7 @@ Requirements:
 5. Include must-see places if specified: ${tripData.must_see_places || 'none specified'}
 6. Each activity should have a time, name, description, and effort level (low/medium/high)
 7. Effort levels should reflect physical and mental demands
-8. For ${tripData.travel_style} style and ${tripData.walking_tolerance} walking tolerance, balance activity intensity appropriately
+8. For ${tripData.travel_style} style and ${tripData.walking_tolerance} walking tolerance, balance activity intensity appropriately${weatherData && weatherData.length > 0 ? '\n9. CRITICAL: Adapt activities to weather conditions - indoor activities on rainy/snowy days, outdoor activities on clear days' : ''}
 
 Return JSON in this exact format:
 {

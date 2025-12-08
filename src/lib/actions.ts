@@ -1,13 +1,30 @@
 import { createTrip, createItineraryDay, updateItineraryDay, getItinerariesForTrip, getTripById } from './db';
 import { getAIProvider } from './ai/provider-factory';
-import type { TripFormData, AdjustmentComparison, AdjustmentMode, DayPlan } from '../types';
+import { fetchDailyWeather } from './weather';
+import type { TripFormData, AdjustmentComparison, AdjustmentMode, DayPlan, WeatherData } from '../types';
 
 export async function generateItinerary(tripData: TripFormData): Promise<string> {
   try {
     const trip = await createTrip(tripData);
 
+    let weatherData: WeatherData[] | null = null;
+
+    if (tripData.consider_weather !== false && tripData.cities && tripData.cities.length > 0) {
+      try {
+        const primaryCity = tripData.cities[0];
+        weatherData = await fetchDailyWeather(
+          primaryCity.latitude,
+          primaryCity.longitude,
+          tripData.start_date,
+          tripData.days
+        );
+      } catch (error) {
+        console.error('Failed to fetch weather data:', error);
+      }
+    }
+
     const aiProvider = getAIProvider();
-    const dayPlans = await aiProvider.generateItinerary(tripData);
+    const dayPlans = await aiProvider.generateItinerary(tripData, weatherData);
 
     for (let i = 0; i < dayPlans.length; i++) {
       await createItineraryDay(trip.id, i + 1, dayPlans[i]);

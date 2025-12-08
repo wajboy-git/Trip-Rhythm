@@ -1,7 +1,7 @@
-import type { DayPlan, TripFormData, AdjustmentMode, AdjustmentComparison } from '../../types';
+import type { DayPlan, TripFormData, AdjustmentMode, AdjustmentComparison, WeatherData } from '../../types';
 
 export interface AIProvider {
-  generateItinerary(tripData: TripFormData): Promise<DayPlan[]>;
+  generateItinerary(tripData: TripFormData, weatherData?: WeatherData[] | null): Promise<DayPlan[]>;
   adjustDayForFatigue(
     currentDay: DayPlan,
     dayIndex: number,

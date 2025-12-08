@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import type { AIProvider } from './types';
-import type { DayPlan, TripFormData, AdjustmentMode, AdjustmentComparison } from '../../types';
+import type { DayPlan, TripFormData, AdjustmentMode, AdjustmentComparison, WeatherData } from '../../types';
+import { formatWeatherForAI } from '../weather';
 
 export class AnthropicProvider implements AIProvider {
   private client: Anthropic;
@@ -9,8 +10,8 @@ export class AnthropicProvider implements AIProvider {
     this.client = new Anthropic({ apiKey, dangerouslyAllowBrowser: true });
   }
 
-  async generateItinerary(tripData: TripFormData): Promise<DayPlan[]> {
-    const prompt = this.buildGeneratePrompt(tripData);
+  async generateItinerary(tripData: TripFormData, weatherData?: WeatherData[] | null): Promise<DayPlan[]> {
+    const prompt = this.buildGeneratePrompt(tripData, weatherData);
 
     const response = await this.client.messages.create({
       model: 'claude-3-5-sonnet-20241022',
@@ -118,7 +119,7 @@ export class AnthropicProvider implements AIProvider {
     };
   }
 
-  private buildGeneratePrompt(tripData: TripFormData): string {
+  private buildGeneratePrompt(tripData: TripFormData, weatherData?: WeatherData[] | null): string {
     const startDate = new Date(tripData.start_date);
 
     const destinationInfo = tripData.cities && tripData.cities.length > 0
@@ -133,6 +134,10 @@ export class AnthropicProvider implements AIProvider {
       ? `\n- Multi-City Trip: The itinerary should flow across these cities in order: ${tripData.cities.map(c => `${c.name}, ${c.country}`).join(' → ')}`
       : '';
 
+    const weatherNote = weatherData && weatherData.length > 0
+      ? `\n\nWEATHER FORECAST:\n${formatWeatherForAI(weatherData)}\n\nIMPORTANT: Plan activities based on weather conditions. On days with heavy rain or snow, favor indoor activities (museums, galleries, cafes, shopping). On clear days, prioritize outdoor activities (parks, walking tours, outdoor attractions).`
+      : '';
+
     return `Generate a ${tripData.days}-day travel itinerary for ${destinationInfo}.
 
 Trip Details:
@@ -143,7 +148,7 @@ Trip Details:
 - Walking Tolerance: ${tripData.walking_tolerance} (low = minimal walking, use transport; medium = moderate walking with breaks; high = comfortable with long walks)
 - Wake Time: ${tripData.wake_time}
 - Sleep Time: ${tripData.sleep_time}${citiesNote}
-${tripData.must_see_places ? `- Must-See Places: ${tripData.must_see_places}` : ''}
+${tripData.must_see_places ? `- Must-See Places: ${tripData.must_see_places}` : ''}${weatherNote}
 
 Requirements:
 1. Create ${tripData.days} days of activities
@@ -153,7 +158,7 @@ Requirements:
 5. Include must-see places if specified: ${tripData.must_see_places || 'none specified'}
 6. Each activity should have a time, name, description, and effort level (low/medium/high)
 7. Effort levels should reflect physical and mental demands
-8. For ${tripData.travel_style} style and ${tripData.walking_tolerance} walking tolerance, balance activity intensity appropriately
+8. For ${tripData.travel_style} style and ${tripData.walking_tolerance} walking tolerance, balance activity intensity appropriately${weatherData && weatherData.length > 0 ? '\n9. CRITICAL: Adapt activities to weather conditions - indoor activities on rainy/snowy days, outdoor activities on clear days' : ''}
 
 Return ONLY valid JSON in this exact format (no other text):
 {

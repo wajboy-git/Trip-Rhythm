@@ -1,16 +1,42 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, MapPin, Calendar, Clock, Battery, Zap, Flame } from 'lucide-react';
+import { ArrowLeft, MapPin, Calendar, Clock, Battery, Zap, Flame, Sun, Cloud, CloudRain, Snowflake, CloudDrizzle, CloudSun, CloudFog, CloudLightning } from 'lucide-react';
 import { getTripById, getItinerariesForTrip } from '../lib/db';
 import { adjustDaysWithModeAndScope, saveAdjustedDays } from '../lib/actions';
-import type { Trip, Itinerary, DayPlan, EffortLevel, AdjustmentComparison, AdjustmentMode, TravelLeg, TravelItem, ItineraryItemType } from '../types';
+import type { Trip, Itinerary, DayPlan, EffortLevel, AdjustmentComparison, AdjustmentMode, TravelLeg, TravelItem, ItineraryItemType, WeatherData, DayWeather } from '../types';
 import toast from 'react-hot-toast';
 import { ComparisonModal } from '../components/ComparisonModal';
 import { CityChip } from '../components/CityChip';
 import { EnergyScopeDialog } from '../components/EnergyScopeDialog';
 import { EnergyScopeInstructions } from '../components/EnergyScopeInstructions';
+import { WeatherSuggestionsCard } from '../components/WeatherSuggestionsCard';
+import { PackingListSummary } from '../components/PackingListSummary';
 import { calculateTravelLegs, assignTravelLegsToDays, estimateTravelTime } from '../lib/travel';
 import { TravelItem as TravelItemComponent } from '../components/TravelItem';
+import { fetchDailyWeather, enrichWeatherWithMetadata } from '../lib/weather';
+
+function getWeatherIconComponent(iconName: string) {
+  switch (iconName) {
+    case 'sun':
+      return Sun;
+    case 'cloud-sun':
+      return CloudSun;
+    case 'cloud':
+      return Cloud;
+    case 'cloud-fog':
+      return CloudFog;
+    case 'cloud-drizzle':
+      return CloudDrizzle;
+    case 'cloud-rain':
+      return CloudRain;
+    case 'snowflake':
+      return Snowflake;
+    case 'cloud-lightning':
+      return CloudLightning;
+    default:
+      return Cloud;
+  }
+}
 
 function organizeItemsByCity(
   activityItems: ItineraryItemType[],
@@ -74,6 +100,9 @@ export function TripDetailPage() {
   const [comparison, setComparison] = useState<AdjustmentComparison | null>(null);
   const [showEnergyScope, setShowEnergyScope] = useState(false);
   const [pendingEnergyMode, setPendingEnergyMode] = useState<AdjustmentMode | null>(null);
+  const [weatherData, setWeatherData] = useState<DayWeather[]>([]);
+  const [loadingWeather, setLoadingWeather] = useState(false);
+  const [weatherDismissed, setWeatherDismissed] = useState(false);
 
   useEffect(() => {
     if (tripId) {
@@ -92,6 +121,10 @@ export function TripDetailPage() {
 
       setTrip(tripData);
       setItineraries(itineraryData);
+
+      if (tripData?.consider_weather !== false && tripData?.cities && tripData.cities.length > 0) {
+        loadWeatherData(tripData);
+      }
 
       // Merge travel legs into itineraries with proper travel line positioning
       if (tripData?.cities && tripData.cities.length > 0) {
@@ -158,6 +191,30 @@ export function TripDetailPage() {
       console.error(error);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function loadWeatherData(tripData: Trip) {
+    if (!tripData.cities || tripData.cities.length === 0) return;
+
+    setLoadingWeather(true);
+    try {
+      const primaryCity = tripData.cities[0];
+      const rawWeather = await fetchDailyWeather(
+        primaryCity.latitude,
+        primaryCity.longitude,
+        tripData.start_date,
+        tripData.days
+      );
+
+      if (rawWeather) {
+        const enriched = rawWeather.map(enrichWeatherWithMetadata);
+        setWeatherData(enriched);
+      }
+    } catch (error) {
+      console.error('Failed to load weather data:', error);
+    } finally {
+      setLoadingWeather(false);
     }
   }
 
@@ -354,6 +411,21 @@ export function TripDetailPage() {
 
       <EnergyScopeInstructions />
 
+      {weatherData.length > 0 && !weatherDismissed && (
+        <div className="mb-6">
+          <WeatherSuggestionsCard
+            weatherData={weatherData}
+            onDismiss={() => setWeatherDismissed(true)}
+          />
+        </div>
+      )}
+
+      {weatherData.length > 0 && tripId && (
+        <div className="mb-6">
+          <PackingListSummary tripId={tripId} weatherData={weatherData} />
+        </div>
+      )}
+
       <div className="space-y-6">
         {mergedItineraries.map((itinerary) => {
           let cityName: string | undefined;
@@ -366,6 +438,8 @@ export function TripDetailPage() {
             }
           }
 
+          const weather = weatherData.find(w => w.date === itinerary.ai_plan_json.date);
+
           return (
             <DayCard
               key={itinerary.id}
@@ -373,6 +447,7 @@ export function TripDetailPage() {
               isSelected={selectedDayIndex === itinerary.day_index}
               onSelect={() => setSelectedDayIndex(itinerary.day_index)}
               cityName={cityName}
+              weather={weather}
             />
           );
         })}
@@ -480,11 +555,13 @@ function DayCard({
   isSelected,
   onSelect,
   cityName,
+  weather,
 }: {
   itinerary: Itinerary & { items: ItineraryItemType[] };
   isSelected: boolean;
   onSelect: () => void;
   cityName?: string;
+  weather?: DayWeather;
 }) {
   const dayPlan = itinerary.ai_plan_json;
   const date = new Date(dayPlan.date);
@@ -493,6 +570,14 @@ function DayCard({
     month: 'long',
     day: 'numeric',
   });
+
+  const WeatherIcon = weather ? getWeatherIconComponent(weather.icon) : null;
+
+  const weatherColors = {
+    'good-outdoor': 'bg-green-50 border-green-200 text-green-800',
+    'mixed': 'bg-amber-50 border-amber-200 text-amber-800',
+    'indoor-focused': 'bg-blue-50 border-blue-200 text-blue-800',
+  };
 
   return (
     <div
@@ -509,11 +594,28 @@ function DayCard({
           <p className="text-sm text-gray-600">{formattedDate}</p>
           {cityName && <p className="text-xs text-sky-600 font-medium mt-1">{cityName}</p>}
         </div>
-        {isSelected && (
-          <span className="px-3 py-1 bg-amber-100 text-amber-800 text-sm font-medium rounded-full">
-            Selected
-          </span>
-        )}
+        <div className="flex items-center gap-2">
+          {weather && (
+            <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border ${weatherColors[weather.category]}`}>
+              {WeatherIcon && <WeatherIcon className="w-5 h-5" />}
+              <div className="text-xs">
+                <div className="font-semibold">
+                  {Math.round(weather.temperature_min)}°-{Math.round(weather.temperature_max)}°C
+                </div>
+                {weather.precipitation_probability > 0 && (
+                  <div className="text-[10px] opacity-75">
+                    {weather.precipitation_probability}% rain
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+          {isSelected && (
+            <span className="px-3 py-1 bg-amber-100 text-amber-800 text-sm font-medium rounded-full">
+              Selected
+            </span>
+          )}
+        </div>
       </div>
 
       <p className="text-gray-700 mb-6">{dayPlan.summary}</p>

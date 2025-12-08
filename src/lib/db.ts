@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import type { Trip, Itinerary, TripFormData, DayPlan, City } from '../types';
+import type { Trip, Itinerary, TripFormData, DayPlan, City, DeletedTripData } from '../types';
 
 export async function createOrGetCity(cityData: {
   name: string;
@@ -78,6 +78,7 @@ export async function createTrip(tripData: TripFormData): Promise<Trip> {
       wake_time: tripData.wake_time,
       sleep_time: tripData.sleep_time,
       must_see_places: tripData.must_see_places || null,
+      consider_weather: tripData.consider_weather ?? true,
       origin_city_id: originCityId,
     })
     .select()
@@ -245,4 +246,144 @@ export async function deleteItinerariesForTrip(tripId: string): Promise<void> {
   if (error) {
     throw new Error(`Failed to delete itineraries: ${error.message}`);
   }
+}
+
+export async function deleteTripCities(tripId: string): Promise<void> {
+  const { error } = await supabase
+    .from('trip_cities')
+    .delete()
+    .eq('trip_id', tripId);
+
+  if (error) {
+    throw new Error(`Failed to delete trip cities: ${error.message}`);
+  }
+}
+
+export async function deleteTrip(tripId: string): Promise<DeletedTripData> {
+  const trip = await getTripById(tripId);
+  if (!trip) {
+    throw new Error('Trip not found');
+  }
+
+  const itineraries = await getItinerariesForTrip(tripId);
+  const cities = trip.cities?.map(c => c.id) || [];
+
+  await deleteItinerariesForTrip(tripId);
+  await deleteTripCities(tripId);
+
+  const { error } = await supabase
+    .from('trips')
+    .delete()
+    .eq('id', tripId);
+
+  if (error) {
+    throw new Error(`Failed to delete trip: ${error.message}`);
+  }
+
+  return {
+    trip,
+    cities,
+    itineraries,
+    timestamp: Date.now(),
+  };
+}
+
+export async function bulkDeleteTrips(tripIds: string[]): Promise<DeletedTripData[]> {
+  const deletedData: DeletedTripData[] = [];
+
+  for (const tripId of tripIds) {
+    try {
+      const data = await deleteTrip(tripId);
+      deletedData.push(data);
+    } catch (error) {
+      console.error(`Failed to delete trip ${tripId}:`, error);
+      throw error;
+    }
+  }
+
+  return deletedData;
+}
+
+export async function restoreTripCities(tripId: string, cityIds: string[]): Promise<void> {
+  if (cityIds.length === 0) return;
+
+  const tripCities = cityIds.map((cityId, index) => ({
+    trip_id: tripId,
+    city_id: cityId,
+    order_index: index + 1,
+  }));
+
+  const { error } = await supabase
+    .from('trip_cities')
+    .insert(tripCities);
+
+  if (error) {
+    throw new Error(`Failed to restore trip cities: ${error.message}`);
+  }
+}
+
+export async function restoreItineraries(itineraries: Itinerary[]): Promise<void> {
+  if (itineraries.length === 0) return;
+
+  const { error } = await supabase
+    .from('itineraries')
+    .insert(itineraries.map(i => ({
+      id: i.id,
+      trip_id: i.trip_id,
+      day_index: i.day_index,
+      ai_plan_json: i.ai_plan_json,
+      created_at: i.created_at,
+    })));
+
+  if (error) {
+    throw new Error(`Failed to restore itineraries: ${error.message}`);
+  }
+}
+
+export async function restoreTrip(deletedData: DeletedTripData): Promise<Trip> {
+  const { trip, cities, itineraries } = deletedData;
+
+  const { data, error } = await supabase
+    .from('trips')
+    .insert({
+      id: trip.id,
+      destination: trip.destination,
+      start_date: trip.start_date,
+      days: trip.days,
+      travel_style: trip.travel_style,
+      walking_tolerance: trip.walking_tolerance,
+      wake_time: trip.wake_time,
+      sleep_time: trip.sleep_time,
+      must_see_places: trip.must_see_places,
+      consider_weather: trip.consider_weather,
+      origin_city_id: trip.origin_city_id,
+      created_at: trip.created_at,
+    })
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(`Failed to restore trip: ${error.message}`);
+  }
+
+  await restoreTripCities(trip.id, cities);
+  await restoreItineraries(itineraries);
+
+  return data;
+}
+
+export async function bulkRestoreTrips(deletedDataArray: DeletedTripData[]): Promise<Trip[]> {
+  const restoredTrips: Trip[] = [];
+
+  for (const deletedData of deletedDataArray) {
+    try {
+      const trip = await restoreTrip(deletedData);
+      restoredTrips.push(trip);
+    } catch (error) {
+      console.error(`Failed to restore trip ${deletedData.trip.id}:`, error);
+      throw error;
+    }
+  }
+
+  return restoredTrips;
 }
