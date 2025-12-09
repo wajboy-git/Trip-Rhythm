@@ -69,6 +69,40 @@ export function WikipediaModal({ isOpen, title, onClose }: WikipediaModalProps) 
       }
     }
 
+    cleaned = cleaned.replace(/\s+of\s+.*$/i, '');
+
+    const locationDescriptors = [
+      "'s streets",
+      "'s street",
+      " streets",
+      " street",
+      " area",
+      " district",
+      " neighborhood",
+      " neighbourhood",
+      " quarter",
+      " lane",
+      " road",
+      " avenue",
+      " boulevard",
+      " square",
+      " plaza",
+      " gardens",
+      " garden",
+      " park",
+      " trail",
+      " path",
+      " walk",
+    ];
+
+    const lowerFinal = cleaned.toLowerCase();
+    for (const descriptor of locationDescriptors) {
+      if (lowerFinal.endsWith(descriptor)) {
+        cleaned = cleaned.substring(0, cleaned.length - descriptor.length);
+        break;
+      }
+    }
+
     return cleaned.trim();
   }
 
