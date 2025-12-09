@@ -174,7 +174,7 @@ export function getActivityColor(type: ActivityType): string {
   return colors[type];
 }
 
-export function isPlaceName(activityName: string): boolean {
+export function isMealActivity(activityName: string): boolean {
   const lowerName = activityName.toLowerCase();
 
   const mealKeywords = [
@@ -190,8 +190,14 @@ export function isPlaceName(activityName: string): boolean {
     'cafe',
   ];
 
-  if (mealKeywords.some((keyword) => lowerName.includes(keyword))) {
-    return false;
+  return mealKeywords.some((keyword) => lowerName.includes(keyword));
+}
+
+export function isPlaceName(activityName: string): boolean {
+  const lowerName = activityName.toLowerCase();
+
+  if (isMealActivity(activityName)) {
+    return true;
   }
 
   const arrivalKeywords = [

@@ -15,7 +15,8 @@ import { calculateTravelLegs, assignTravelLegsToDays, estimateTravelTime } from 
 import { TravelItem as TravelItemComponent } from '../components/TravelItem';
 import { fetchDailyWeather, enrichWeatherWithMetadata } from '../lib/weather';
 import { WikipediaModal } from '../components/WikipediaModal';
-import { getActivityIcons, isPlaceName } from '../lib/activity-icons';
+import { RestaurantModal } from '../components/RestaurantModal';
+import { getActivityIcons, isPlaceName, isMealActivity } from '../lib/activity-icons';
 
 function getWeatherIconComponent(iconName: string) {
   switch (iconName) {
@@ -107,6 +108,8 @@ export function TripDetailPage() {
   const [weatherDismissed, setWeatherDismissed] = useState(false);
   const [wikipediaOpen, setWikipediaOpen] = useState(false);
   const [selectedPlaceTitle, setSelectedPlaceTitle] = useState('');
+  const [restaurantModalOpen, setRestaurantModalOpen] = useState(false);
+  const [selectedMealActivity, setSelectedMealActivity] = useState<{ name: string; time: string; cityName?: string } | null>(null);
 
   useEffect(() => {
     if (tripId) {
@@ -452,9 +455,14 @@ export function TripDetailPage() {
               onSelect={() => setSelectedDayIndex(itinerary.day_index)}
               cityName={cityName}
               weather={weather}
-              onPlaceClick={(title) => {
-                setSelectedPlaceTitle(title);
-                setWikipediaOpen(true);
+              onPlaceClick={(title, time) => {
+                if (isMealActivity(title)) {
+                  setSelectedMealActivity({ name: title, time, cityName });
+                  setRestaurantModalOpen(true);
+                } else {
+                  setSelectedPlaceTitle(title);
+                  setWikipediaOpen(true);
+                }
               }}
             />
           );
@@ -563,6 +571,17 @@ export function TripDetailPage() {
           setSelectedPlaceTitle('');
         }}
       />
+
+      <RestaurantModal
+        isOpen={restaurantModalOpen}
+        activityName={selectedMealActivity?.name || ''}
+        time={selectedMealActivity?.time || ''}
+        cityName={selectedMealActivity?.cityName}
+        onClose={() => {
+          setRestaurantModalOpen(false);
+          setSelectedMealActivity(null);
+        }}
+      />
     </div>
   );
 }
@@ -580,7 +599,7 @@ function DayCard({
   onSelect: () => void;
   cityName?: string;
   weather?: DayWeather;
-  onPlaceClick?: (title: string) => void;
+  onPlaceClick?: (title: string, time: string) => void;
 }) {
   const dayPlan = itinerary.ai_plan_json;
   const date = new Date(dayPlan.date);
@@ -657,7 +676,7 @@ function ActivityCard({
   onPlaceClick,
 }: {
   activity: { time: string; name: string; description: string; effortLevel: EffortLevel };
-  onPlaceClick?: (title: string) => void;
+  onPlaceClick?: (title: string, time: string) => void;
 }) {
   const effortColors = {
     low: 'bg-green-100 text-green-800 border-green-200',
@@ -695,7 +714,7 @@ function ActivityCard({
             </div>
             {isPlace && onPlaceClick ? (
               <button
-                onClick={() => onPlaceClick(activity.name)}
+                onClick={() => onPlaceClick(activity.name, activity.time)}
                 className="text-lg font-semibold text-sky-600 hover:text-sky-700 underline text-left transition-colors"
               >
                 {activity.name}
