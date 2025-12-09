@@ -57,6 +57,29 @@ export function WikipediaModal({ isOpen, title, onClose }: WikipediaModalProps) 
     return cleaned.trim();
   }
 
+  async function searchWikipedia(query: string): Promise<string | null> {
+    const searchParams = new URLSearchParams({
+      action: 'opensearch',
+      format: 'json',
+      search: query,
+      limit: '1',
+      origin: '*',
+    });
+
+    const response = await fetch(
+      `https://en.wikipedia.org/w/api.php?${searchParams.toString()}`
+    );
+
+    if (!response.ok) return null;
+
+    const data = await response.json();
+    if (data && data[1] && data[1].length > 0) {
+      return data[1][0];
+    }
+
+    return null;
+  }
+
   async function fetchWikipediaContent(searchTitle: string) {
     setLoading(true);
     setError(null);
@@ -65,10 +88,17 @@ export function WikipediaModal({ isOpen, title, onClose }: WikipediaModalProps) 
     const cleanedTitle = cleanPlaceName(searchTitle);
 
     try {
+      const bestMatch = await searchWikipedia(cleanedTitle);
+
+      if (!bestMatch) {
+        setError(`No Wikipedia page found for "${cleanedTitle}"`);
+        return;
+      }
+
       const searchParams = new URLSearchParams({
         action: 'query',
         format: 'json',
-        titles: cleanedTitle,
+        titles: bestMatch,
         prop: 'extracts|pageimages|info',
         exintro: 'true',
         explaintext: 'true',
@@ -93,7 +123,7 @@ export function WikipediaModal({ isOpen, title, onClose }: WikipediaModalProps) 
       }
 
       const pageData = pages[pageKey];
-      const wikiUrl = pageData.canonicalurl || `https://en.wikipedia.org/wiki/${encodeURIComponent(cleanedTitle)}`;
+      const wikiUrl = pageData.canonicalurl || `https://en.wikipedia.org/wiki/${encodeURIComponent(bestMatch)}`;
 
       setPage({
         title: pageData.title,

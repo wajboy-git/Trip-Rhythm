@@ -175,6 +175,37 @@ export function getActivityColor(type: ActivityType): string {
 }
 
 export function isPlaceName(activityName: string): boolean {
+  const lowerName = activityName.toLowerCase();
+
+  const mealKeywords = [
+    'lunch',
+    'dinner',
+    'breakfast',
+    'brunch',
+    'meal',
+    'eat',
+    'food',
+    'restaurant',
+    'café',
+    'cafe',
+  ];
+
+  if (mealKeywords.some((keyword) => lowerName.includes(keyword))) {
+    return false;
+  }
+
+  const arrivalKeywords = [
+    'arrive',
+    'check-in',
+    'checkin',
+    'departure',
+    'depart',
+  ];
+
+  if (arrivalKeywords.some((keyword) => lowerName.includes(keyword))) {
+    return false;
+  }
+
   const placePrefixes = [
     'the ',
     'visit ',
@@ -214,9 +245,10 @@ export function isPlaceName(activityName: string): boolean {
     'statue',
     'line',
     'market',
+    'acropolis',
+    'parthenon',
+    'colosseum',
   ];
-
-  const lowerName = activityName.toLowerCase();
 
   return (
     placePrefixes.some((prefix) => lowerName.startsWith(prefix)) ||
