@@ -76,7 +76,7 @@ export function DeleteConfirmDialog({
             )}
 
             <p className="text-sm text-gray-600 bg-amber-50 border border-amber-200 rounded-lg p-3">
-              This action cannot be undone after 10 seconds.
+              This action cannot be undone after 15 seconds.
             </p>
           </div>
         </div>
