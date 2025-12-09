@@ -14,6 +14,8 @@ import { PackingListSummary } from '../components/PackingListSummary';
 import { calculateTravelLegs, assignTravelLegsToDays, estimateTravelTime } from '../lib/travel';
 import { TravelItem as TravelItemComponent } from '../components/TravelItem';
 import { fetchDailyWeather, enrichWeatherWithMetadata } from '../lib/weather';
+import { WikipediaModal } from '../components/WikipediaModal';
+import { detectActivityType, getActivityIcon, getActivityColor, isPlaceName } from '../lib/activity-icons';
 
 function getWeatherIconComponent(iconName: string) {
   switch (iconName) {
@@ -103,6 +105,8 @@ export function TripDetailPage() {
   const [weatherData, setWeatherData] = useState<DayWeather[]>([]);
   const [loadingWeather, setLoadingWeather] = useState(false);
   const [weatherDismissed, setWeatherDismissed] = useState(false);
+  const [wikipediaOpen, setWikipediaOpen] = useState(false);
+  const [selectedPlaceTitle, setSelectedPlaceTitle] = useState('');
 
   useEffect(() => {
     if (tripId) {
@@ -448,6 +452,10 @@ export function TripDetailPage() {
               onSelect={() => setSelectedDayIndex(itinerary.day_index)}
               cityName={cityName}
               weather={weather}
+              onPlaceClick={(title) => {
+                setSelectedPlaceTitle(title);
+                setWikipediaOpen(true);
+              }}
             />
           );
         })}
@@ -546,6 +554,15 @@ export function TripDetailPage() {
           />
         );
       })()}
+
+      <WikipediaModal
+        isOpen={wikipediaOpen}
+        title={selectedPlaceTitle}
+        onClose={() => {
+          setWikipediaOpen(false);
+          setSelectedPlaceTitle('');
+        }}
+      />
     </div>
   );
 }
@@ -556,12 +573,14 @@ function DayCard({
   onSelect,
   cityName,
   weather,
+  onPlaceClick,
 }: {
   itinerary: Itinerary & { items: ItineraryItemType[] };
   isSelected: boolean;
   onSelect: () => void;
   cityName?: string;
   weather?: DayWeather;
+  onPlaceClick?: (title: string) => void;
 }) {
   const dayPlan = itinerary.ai_plan_json;
   const date = new Date(dayPlan.date);
@@ -625,7 +644,7 @@ function DayCard({
           if (item.type === 'travel') {
             return <TravelItemComponent key={idx} item={item} />;
           } else {
-            return <ActivityCard key={idx} activity={item} />;
+            return <ActivityCard key={idx} activity={item} onPlaceClick={onPlaceClick} />;
           }
         })}
       </div>
@@ -633,28 +652,48 @@ function DayCard({
   );
 }
 
-function ActivityCard({ activity }: { activity: { time: string; name: string; description: string; effortLevel: EffortLevel } }) {
+function ActivityCard({
+  activity,
+  onPlaceClick,
+}: {
+  activity: { time: string; name: string; description: string; effortLevel: EffortLevel };
+  onPlaceClick?: (title: string) => void;
+}) {
   const effortColors = {
     low: 'bg-green-100 text-green-800 border-green-200',
     medium: 'bg-amber-100 text-amber-800 border-amber-200',
     high: 'bg-red-100 text-red-800 border-red-200',
   };
 
+  const activityType = detectActivityType(activity.name, activity.description);
+  const Icon = getActivityIcon(activityType);
+  const colorClass = getActivityColor(activityType);
+  const isPlace = isPlaceName(activity.name);
+
   return (
     <div className="flex gap-4 p-4 bg-gray-50 rounded-lg">
       <div className="flex-shrink-0">
-        <div className="w-16 h-16 bg-sky-100 rounded-lg flex items-center justify-center">
-          <Clock className="w-6 h-6 text-sky-600" />
+        <div className={`w-16 h-16 ${colorClass} rounded-lg flex items-center justify-center`}>
+          <Icon className="w-6 h-6" />
         </div>
       </div>
 
       <div className="flex-1">
         <div className="flex items-start justify-between mb-2">
-          <div>
+          <div className="flex-1">
             <div className="flex items-center gap-2 mb-1">
               <span className="text-xs font-medium text-gray-500">{activity.time}</span>
             </div>
-            <h4 className="text-lg font-semibold text-gray-900">{activity.name}</h4>
+            {isPlace && onPlaceClick ? (
+              <button
+                onClick={() => onPlaceClick(activity.name)}
+                className="text-lg font-semibold text-sky-600 hover:text-sky-700 underline text-left transition-colors"
+              >
+                {activity.name}
+              </button>
+            ) : (
+              <h4 className="text-lg font-semibold text-gray-900">{activity.name}</h4>
+            )}
           </div>
           <div className={`flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium border ${effortColors[activity.effortLevel]}`}>
             <Battery className="w-3 h-3" />
