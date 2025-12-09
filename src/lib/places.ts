@@ -30,74 +30,40 @@ export async function searchRestaurants(
   time: string,
   cityName?: string
 ): Promise<RestaurantResult[]> {
-  const apiKey = import.meta.env.VITE_GOOGLE_PLACES_API_KEY;
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-  if (!apiKey) {
-    throw new Error('Google Places API key not configured');
+  if (!supabaseUrl || !supabaseAnonKey) {
+    throw new Error('Supabase configuration missing');
   }
 
-  const searchQuery = cityName
-    ? `restaurants near ${location} ${cityName}`
-    : `restaurants near ${location}`;
-
   try {
-    const textSearchUrl = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(searchQuery)}&key=${apiKey}`;
+    const edgeFunctionUrl = `${supabaseUrl}/functions/v1/restaurant-search`;
 
-    const response = await fetch(textSearchUrl);
+    const response = await fetch(edgeFunctionUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${supabaseAnonKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        location,
+        cityName,
+      }),
+    });
 
     if (!response.ok) {
-      throw new Error('Failed to fetch restaurant data');
+      const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+      throw new Error(errorData.error || 'Failed to fetch restaurant data');
     }
 
     const data = await response.json();
 
-    if (data.status !== 'OK' && data.status !== 'ZERO_RESULTS') {
-      throw new Error(`Google Places API error: ${data.status}`);
-    }
-
-    if (!data.results || data.results.length === 0) {
+    if (!data.results) {
       return [];
     }
 
-    const results: RestaurantResult[] = data.results
-      .slice(0, 10)
-      .map((place: any) => ({
-        name: place.name,
-        rating: place.rating || 0,
-        userRatingsTotal: place.user_ratings_total || 0,
-        address: place.formatted_address || '',
-        phoneNumber: place.formatted_phone_number,
-        priceLevel: place.price_level,
-        openNow: place.opening_hours?.open_now,
-        placeId: place.place_id,
-      }))
-      .sort((a, b) => {
-        if (b.rating !== a.rating) {
-          return b.rating - a.rating;
-        }
-        return b.userRatingsTotal - a.userRatingsTotal;
-      });
-
-    const detailedResults = await Promise.all(
-      results.map(async (result) => {
-        try {
-          const detailsUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${result.placeId}&fields=formatted_phone_number&key=${apiKey}`;
-          const detailsResponse = await fetch(detailsUrl);
-
-          if (detailsResponse.ok) {
-            const detailsData = await detailsResponse.json();
-            if (detailsData.result?.formatted_phone_number) {
-              result.phoneNumber = detailsData.result.formatted_phone_number;
-            }
-          }
-        } catch (err) {
-          console.error('Failed to fetch phone number:', err);
-        }
-        return result;
-      })
-    );
-
-    return detailedResults;
+    return data.results;
   } catch (error) {
     console.error('Restaurant search error:', error);
     throw error;

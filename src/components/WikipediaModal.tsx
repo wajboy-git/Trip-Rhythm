@@ -54,6 +54,21 @@ export function WikipediaModal({ isOpen, title, onClose }: WikipediaModalProps) 
 
     cleaned = cleaned.replace(/^the\s+/i, '');
 
+    const actionSuffixes = [
+      ' visit',
+      ' tour',
+      ' exploration',
+      ' experience',
+    ];
+
+    const lowerCleaned = cleaned.toLowerCase();
+    for (const suffix of actionSuffixes) {
+      if (lowerCleaned.endsWith(suffix)) {
+        cleaned = cleaned.substring(0, cleaned.length - suffix.length);
+        break;
+      }
+    }
+
     return cleaned.trim();
   }
 
