@@ -12,7 +12,7 @@ export class GeminiProvider implements AIProvider {
 
   async generateItinerary(tripData: TripFormData, weatherData?: WeatherData[] | null): Promise<DayPlan[]> {
     const model = this.client.getGenerativeModel({
-      model: 'gemini-2.5-flash-lite',
+      model: 'gemini-2.5-flash',
       generationConfig: {
         temperature: 0.7,
         responseMimeType: 'application/json',
@@ -46,7 +46,7 @@ export class GeminiProvider implements AIProvider {
     tripContext: TripFormData
   ): Promise<{ originalDay: DayPlan; adjustedDay: DayPlan }> {
     const model = this.client.getGenerativeModel({
-      model: 'gemini-2.5-flash-lite',
+      model: 'gemini-2.5-flash',
       generationConfig: {
         temperature: 0.7,
         responseMimeType: 'application/json',
@@ -83,7 +83,7 @@ export class GeminiProvider implements AIProvider {
     mode: AdjustmentMode
   ): Promise<AdjustmentComparison> {
     const model = this.client.getGenerativeModel({
-      model: 'gemini-2.5-flash-lite',
+      model: 'gemini-2.5-flash',
       generationConfig: {
         temperature: 0.7,
         responseMimeType: 'application/json',
