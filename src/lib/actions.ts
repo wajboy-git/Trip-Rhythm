@@ -170,14 +170,19 @@ export async function adjustDaysWithModeAndScope(
 
       const adjustment = await aiProvider.adjustDaysWithMode(
         dayIndex,
-        [currentDay],
+        allDays,
         tripContext,
         mode
       );
 
+      const adjustedDay = adjustment.adjustedDays[dayIndex - 1];
+      if (!adjustedDay) {
+        throw new Error('Adjusted day not found in response');
+      }
+
       return {
         originalDays: [currentDay],
-        adjustedDays: adjustment.adjustedDays,
+        adjustedDays: [adjustedDay],
         startDayIndex: dayIndex,
         mode,
       };

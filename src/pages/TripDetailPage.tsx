@@ -148,17 +148,17 @@ export function TripDetailPage() {
       );
 
       if (!result || !Array.isArray(result.adjustedDays) || result.adjustedDays.length === 0) {
-        throw new Error('Invalid adjustment result: no adjusted days returned');
+        throw new Error('Could not adjust the itinerary. The AI response was invalid. Please try again.');
       }
 
       if (!result.originalDays || result.adjustedDays.length !== result.originalDays.length) {
-        throw new Error('Data mismatch: number of adjusted days does not match original days');
+        throw new Error('Could not adjust the itinerary. The response data was incomplete. Please try again.');
       }
 
       setComparison(result);
       setShowComparison(true);
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to adjust days';
+      const errorMessage = error instanceof Error ? error.message : 'Could not adjust the itinerary. Please try again.';
       toast.error(errorMessage);
       console.error('Adjustment error:', error);
     } finally {
