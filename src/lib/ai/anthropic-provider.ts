@@ -31,12 +31,22 @@ export class AnthropicProvider implements AIProvider {
     }
 
     const text = textContent.text;
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      throw new Error('No JSON found in Anthropic response');
+    let parsed: any;
+    try {
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        throw new Error('No JSON found in Anthropic response');
+      }
+      parsed = JSON.parse(jsonMatch[0]);
+    } catch (error) {
+      console.error('Failed to parse Anthropic response:', text);
+      throw new Error('Invalid JSON in Anthropic response');
     }
 
-    const parsed = JSON.parse(jsonMatch[0]);
+    if (!Array.isArray(parsed.days)) {
+      throw new Error('Invalid response format: missing or invalid days array');
+    }
+
     return parsed.days as DayPlan[];
   }
 
@@ -66,12 +76,22 @@ export class AnthropicProvider implements AIProvider {
     }
 
     const text = textContent.text;
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      throw new Error('No JSON found in Anthropic response');
+    let parsed: any;
+    try {
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        throw new Error('No JSON found in Anthropic response');
+      }
+      parsed = JSON.parse(jsonMatch[0]);
+    } catch (error) {
+      console.error('Failed to parse Anthropic response:', text);
+      throw new Error('Invalid JSON in Anthropic response');
     }
 
-    const parsed = JSON.parse(jsonMatch[0]);
+    if (!parsed.originalDay || !parsed.adjustedDay) {
+      throw new Error('Invalid response format: missing originalDay or adjustedDay');
+    }
+
     return {
       originalDay: parsed.originalDay,
       adjustedDay: parsed.adjustedDay,
@@ -105,12 +125,26 @@ export class AnthropicProvider implements AIProvider {
     }
 
     const text = textContent.text;
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      throw new Error('No JSON found in Anthropic response');
+    let parsed: any;
+    try {
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        throw new Error('No JSON found in Anthropic response');
+      }
+      parsed = JSON.parse(jsonMatch[0]);
+    } catch (error) {
+      console.error('Failed to parse Anthropic response:', text);
+      throw new Error('Invalid JSON in Anthropic response');
     }
 
-    const parsed = JSON.parse(jsonMatch[0]);
+    if (!Array.isArray(parsed.adjustedDays)) {
+      throw new Error('Invalid response format: missing or invalid adjustedDays array');
+    }
+
+    if (parsed.adjustedDays.length !== daysToAdjust.length) {
+      throw new Error(`Expected ${daysToAdjust.length} adjusted days, got ${parsed.adjustedDays.length}`);
+    }
+
     return {
       originalDays: daysToAdjust,
       adjustedDays: parsed.adjustedDays,

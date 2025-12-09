@@ -3,6 +3,7 @@ import { lazy, Suspense } from 'react';
 import { AuthProvider } from './contexts/AuthContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { Layout } from './components/Layout';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { LandingPage } from './pages/LandingPage';
 import { LoginPage } from './pages/LoginPage';
 import { SignupPage } from './pages/SignupPage';
@@ -24,23 +25,25 @@ function RouteLoadingFallback() {
 
 function App() {
   return (
-    <BrowserRouter>
-      <AuthProvider>
-        <Routes>
-          <Route path="/" element={<Layout />}>
-            <Route index element={<LandingPage />} />
-            <Route path="login" element={<LoginPage />} />
-            <Route path="signup" element={<SignupPage />} />
-            <Route path="forgot-password" element={<Suspense fallback={<RouteLoadingFallback />}><ForgotPasswordPage /></Suspense>} />
-            <Route path="reset-password" element={<Suspense fallback={<RouteLoadingFallback />}><ResetPasswordPage /></Suspense>} />
-            <Route path="guest-itinerary" element={<Suspense fallback={<RouteLoadingFallback />}><GuestItineraryPage /></Suspense>} />
-            <Route path="home" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
-            <Route path="new-trip" element={<Suspense fallback={<RouteLoadingFallback />}><ProtectedRoute><NewTripPage /></ProtectedRoute></Suspense>} />
-            <Route path="trip/:tripId" element={<Suspense fallback={<RouteLoadingFallback />}><ProtectedRoute><TripDetailPage /></ProtectedRoute></Suspense>} />
-          </Route>
-        </Routes>
-      </AuthProvider>
-    </BrowserRouter>
+    <ErrorBoundary>
+      <BrowserRouter>
+        <AuthProvider>
+          <Routes>
+            <Route path="/" element={<Layout />}>
+              <Route index element={<LandingPage />} />
+              <Route path="login" element={<LoginPage />} />
+              <Route path="signup" element={<SignupPage />} />
+              <Route path="forgot-password" element={<Suspense fallback={<RouteLoadingFallback />}><ForgotPasswordPage /></Suspense>} />
+              <Route path="reset-password" element={<Suspense fallback={<RouteLoadingFallback />}><ResetPasswordPage /></Suspense>} />
+              <Route path="guest-itinerary" element={<Suspense fallback={<RouteLoadingFallback />}><GuestItineraryPage /></Suspense>} />
+              <Route path="home" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
+              <Route path="new-trip" element={<Suspense fallback={<RouteLoadingFallback />}><ProtectedRoute><NewTripPage /></ProtectedRoute></Suspense>} />
+              <Route path="trip/:tripId" element={<Suspense fallback={<RouteLoadingFallback />}><ProtectedRoute><TripDetailPage /></ProtectedRoute></Suspense>} />
+            </Route>
+          </Routes>
+        </AuthProvider>
+      </BrowserRouter>
+    </ErrorBoundary>
   );
 }
 

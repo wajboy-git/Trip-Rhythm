@@ -24,7 +24,18 @@ export class GeminiProvider implements AIProvider {
     const response = result.response;
     const text = response.text();
 
-    const parsed = JSON.parse(text);
+    let parsed: any;
+    try {
+      parsed = JSON.parse(text);
+    } catch (error) {
+      console.error('Failed to parse Gemini response:', text);
+      throw new Error('Invalid JSON in Gemini response');
+    }
+
+    if (!Array.isArray(parsed.days)) {
+      throw new Error('Invalid response format: missing or invalid days array');
+    }
+
     return parsed.days as DayPlan[];
   }
 
@@ -47,7 +58,18 @@ export class GeminiProvider implements AIProvider {
     const response = result.response;
     const text = response.text();
 
-    const parsed = JSON.parse(text);
+    let parsed: any;
+    try {
+      parsed = JSON.parse(text);
+    } catch (error) {
+      console.error('Failed to parse Gemini response:', text);
+      throw new Error('Invalid JSON in Gemini response');
+    }
+
+    if (!parsed.originalDay || !parsed.adjustedDay) {
+      throw new Error('Invalid response format: missing originalDay or adjustedDay');
+    }
+
     return {
       originalDay: parsed.originalDay,
       adjustedDay: parsed.adjustedDay,
@@ -75,7 +97,22 @@ export class GeminiProvider implements AIProvider {
     const response = result.response;
     const text = response.text();
 
-    const parsed = JSON.parse(text);
+    let parsed: any;
+    try {
+      parsed = JSON.parse(text);
+    } catch (error) {
+      console.error('Failed to parse Gemini response:', text);
+      throw new Error('Invalid JSON in Gemini response');
+    }
+
+    if (!Array.isArray(parsed.adjustedDays)) {
+      throw new Error('Invalid response format: missing or invalid adjustedDays array');
+    }
+
+    if (parsed.adjustedDays.length !== daysToAdjust.length) {
+      throw new Error(`Expected ${daysToAdjust.length} adjusted days, got ${parsed.adjustedDays.length}`);
+    }
+
     return {
       originalDays: daysToAdjust,
       adjustedDays: parsed.adjustedDays,

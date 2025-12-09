@@ -146,11 +146,21 @@ export function TripDetailPage() {
         pendingEnergyMode,
         scope
       );
+
+      if (!result || !Array.isArray(result.adjustedDays) || result.adjustedDays.length === 0) {
+        throw new Error('Invalid adjustment result: no adjusted days returned');
+      }
+
+      if (!result.originalDays || result.adjustedDays.length !== result.originalDays.length) {
+        throw new Error('Data mismatch: number of adjusted days does not match original days');
+      }
+
       setComparison(result);
       setShowComparison(true);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to adjust days');
-      console.error(error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to adjust days';
+      toast.error(errorMessage);
+      console.error('Adjustment error:', error);
     } finally {
       setAdjusting(false);
       setAdjustingMode(null);
@@ -160,6 +170,11 @@ export function TripDetailPage() {
 
   async function handleAcceptChanges() {
     if (!tripId || !comparison) return;
+
+    if (!Array.isArray(comparison.adjustedDays) || comparison.adjustedDays.length === 0) {
+      toast.error('Invalid changes: no adjusted days to save');
+      return;
+    }
 
     try {
       await saveAdjustedDays(tripId, comparison.startDayIndex, comparison.adjustedDays);
@@ -189,8 +204,9 @@ export function TripDetailPage() {
 
       setSelectedDayIndex(null);
     } catch (error) {
-      toast.error('Failed to save changes');
-      console.error(error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to save changes';
+      toast.error(errorMessage);
+      console.error('Save error:', error);
     }
   }
 

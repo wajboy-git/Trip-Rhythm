@@ -34,7 +34,18 @@ export class OpenAIProvider implements AIProvider {
       throw new Error('No response from OpenAI');
     }
 
-    const parsed = JSON.parse(content);
+    let parsed: any;
+    try {
+      parsed = JSON.parse(content);
+    } catch (error) {
+      console.error('Failed to parse OpenAI response:', content);
+      throw new Error('Invalid JSON in OpenAI response');
+    }
+
+    if (!Array.isArray(parsed.days)) {
+      throw new Error('Invalid response format: missing or invalid days array');
+    }
+
     return parsed.days as DayPlan[];
   }
 
@@ -67,7 +78,18 @@ export class OpenAIProvider implements AIProvider {
       throw new Error('No response from OpenAI');
     }
 
-    const parsed = JSON.parse(content);
+    let parsed: any;
+    try {
+      parsed = JSON.parse(content);
+    } catch (error) {
+      console.error('Failed to parse OpenAI response:', content);
+      throw new Error('Invalid JSON in OpenAI response');
+    }
+
+    if (!parsed.originalDay || !parsed.adjustedDay) {
+      throw new Error('Invalid response format: missing originalDay or adjustedDay');
+    }
+
     return {
       originalDay: parsed.originalDay,
       adjustedDay: parsed.adjustedDay,
@@ -104,7 +126,22 @@ export class OpenAIProvider implements AIProvider {
       throw new Error('No response from OpenAI');
     }
 
-    const parsed = JSON.parse(content);
+    let parsed: any;
+    try {
+      parsed = JSON.parse(content);
+    } catch (error) {
+      console.error('Failed to parse OpenAI response:', content);
+      throw new Error('Invalid JSON in OpenAI response');
+    }
+
+    if (!Array.isArray(parsed.adjustedDays)) {
+      throw new Error('Invalid response format: missing or invalid adjustedDays array');
+    }
+
+    if (parsed.adjustedDays.length !== daysToAdjust.length) {
+      throw new Error(`Expected ${daysToAdjust.length} adjusted days, got ${parsed.adjustedDays.length}`);
+    }
+
     return {
       originalDays: daysToAdjust,
       adjustedDays: parsed.adjustedDays,
