@@ -15,7 +15,7 @@ interface WikiPage {
 }
 
 export function WikipediaModal({ isOpen, title, onClose }: WikipediaModalProps) {
-  const [page, setPage] = useState<WikiPage | null>(null);
+  const [pages, setPages] = useState<WikiPage[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -129,19 +129,18 @@ export function WikipediaModal({ isOpen, title, onClose }: WikipediaModalProps) 
     return null;
   }
 
-  async function fetchWikipediaContent(searchTitle: string) {
-    setLoading(true);
-    setError(null);
-    setPage(null);
-
+  function splitPlaces(searchTitle: string): string[] {
     const cleanedTitle = cleanPlaceName(searchTitle);
+    const places = cleanedTitle.split(/\s+and\s+|\s+&\s+|,\s*/i);
+    return places.map(p => p.trim()).filter(p => p.length > 0);
+  }
 
+  async function fetchSinglePage(placeName: string): Promise<WikiPage | null> {
     try {
-      const bestMatch = await searchWikipedia(cleanedTitle);
+      const bestMatch = await searchWikipedia(placeName);
 
       if (!bestMatch) {
-        setError(`No Wikipedia page found for "${cleanedTitle}"`);
-        return;
+        return null;
       }
 
       const searchParams = new URLSearchParams({
@@ -160,26 +159,49 @@ export function WikipediaModal({ isOpen, title, onClose }: WikipediaModalProps) 
         `https://en.wikipedia.org/w/api.php?${searchParams.toString()}`
       );
 
-      if (!response.ok) throw new Error('Failed to fetch Wikipedia');
+      if (!response.ok) return null;
 
       const data = await response.json();
       const pages = data.query?.pages || {};
       const pageKey = Object.keys(pages)[0];
 
       if (!pageKey || pageKey === '-1') {
-        setError(`No Wikipedia page found for "${cleanedTitle}"`);
-        return;
+        return null;
       }
 
       const pageData = pages[pageKey];
       const wikiUrl = pageData.canonicalurl || `https://en.wikipedia.org/wiki/${encodeURIComponent(bestMatch)}`;
 
-      setPage({
+      return {
         title: pageData.title,
         content: pageData.extract || 'No content available',
         url: wikiUrl,
         image: pageData.original?.source,
-      });
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  async function fetchWikipediaContent(searchTitle: string) {
+    setLoading(true);
+    setError(null);
+    setPages([]);
+
+    try {
+      const places = splitPlaces(searchTitle);
+      const results = await Promise.all(
+        places.map(place => fetchSinglePage(place))
+      );
+
+      const validPages = results.filter((page): page is WikiPage => page !== null);
+
+      if (validPages.length === 0) {
+        setError(`No Wikipedia pages found for "${searchTitle}"`);
+        return;
+      }
+
+      setPages(validPages);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load Wikipedia content');
     } finally {
@@ -222,36 +244,40 @@ export function WikipediaModal({ isOpen, title, onClose }: WikipediaModalProps) 
             </div>
           )}
 
-          {page && (
-            <>
-              {page.image && (
-                <div className="mb-6">
-                  <img
-                    src={page.image}
-                    alt={page.title}
-                    className="w-full h-64 object-cover rounded-lg"
-                  />
+          {pages.length > 0 && (
+            <div className="space-y-8">
+              {pages.map((page, index) => (
+                <div key={index} className={index > 0 ? 'pt-8 border-t border-gray-200' : ''}>
+                  <h3 className="text-xl font-semibold text-gray-900 mb-4">{page.title}</h3>
+
+                  {page.image && (
+                    <div className="mb-4">
+                      <img
+                        src={page.image}
+                        alt={page.title}
+                        className="w-full h-56 object-cover rounded-lg"
+                      />
+                    </div>
+                  )}
+
+                  <div className="prose prose-sm max-w-none mb-4">
+                    <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">
+                      {page.content}
+                    </p>
+                  </div>
+
+                  <a
+                    href={page.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-sky-600 text-white rounded-lg hover:bg-sky-700 transition-colors font-medium"
+                  >
+                    Read Full Article
+                    <ExternalLink className="w-4 h-4" />
+                  </a>
                 </div>
-              )}
-
-              <div className="prose prose-sm max-w-none mb-6">
-                <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">
-                  {page.content}
-                </p>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <a
-                  href={page.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-sky-600 text-white rounded-lg hover:bg-sky-700 transition-colors font-medium"
-                >
-                  Read Full Article
-                  <ExternalLink className="w-4 h-4" />
-                </a>
-              </div>
-            </>
+              ))}
+            </div>
           )}
         </div>
       </div>
