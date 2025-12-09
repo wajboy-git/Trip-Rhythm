@@ -50,42 +50,23 @@ function organizeItemsByCity(
     return activityItems;
   }
 
-  // Build result by placing travel items before first activity in destination city
+  // If no activities, just return travel items
+  if (activityItems.length === 0) {
+    return travelItems;
+  }
+
+  // For a single day with both travel and activities, place travel before first activity
+  if (travelItems.length === 1 && activityItems.length > 0) {
+    return [travelItems[0], ...activityItems];
+  }
+
+  // Multiple travel items on same day: place them chronologically
+  // Typically, all travel items on a day should go before activities
   const result: ItineraryItemType[] = [];
-  const processedActivities = new Set<number>();
 
-  // For each travel item, find and place it before the first activity in destination city
-  travelItems.forEach((travelItem) => {
-    // Find activities that belong to this travel's destination city
-    // For simplicity, we assume activities are ordered and after a travel leg, the next unprocessed
-    // activity belongs to the destination city
-    const firstUnprocessedActivityIndex = activityItems.findIndex(
-      (_, index) => !processedActivities.has(index)
-    );
-
-    if (firstUnprocessedActivityIndex !== -1) {
-      // Add all activities before this position
-      for (let i = 0; i < firstUnprocessedActivityIndex; i++) {
-        if (!processedActivities.has(i)) {
-          result.push(activityItems[i]);
-          processedActivities.add(i);
-        }
-      }
-      // Add the travel item
-      result.push(travelItem);
-      // Mark the first unprocessed activity to process next time
-    } else {
-      // No more activities, just add travel items at the end
-      result.push(travelItem);
-    }
-  });
-
-  // Add remaining activities
-  activityItems.forEach((activity, index) => {
-    if (!processedActivities.has(index)) {
-      result.push(activity);
-    }
-  });
+  // Group items with proper ordering: travel first, then activities
+  result.push(...travelItems);
+  result.push(...activityItems);
 
   return result;
 }
